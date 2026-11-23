@@ -15,13 +15,19 @@ def fraction_loss(volume, target):
 
 
 def correlation_loss(volume, target):
+    """Match both in-plane axes to horizontal SEM S2 and thickness to vertical S2."""
+    if target.ndim != 2 or target.shape[0] != 2:
+        raise ValueError("Expected horizontal and vertical SEM S2 curves of shape (2, lags).")
     void = volume[:, 0] + volume[:, 1]
     phi = void.mean(dim=(1, 2, 3), keepdim=True)
     spectrum = torch.fft.rfftn(void - phi, dim=(1, 2, 3))
     ac = torch.fft.irfftn(spectrum * spectrum.conj(), s=void.shape[1:], dim=(1, 2, 3))
     phi = phi.reshape(-1, 1)
-    lags = len(target)
+    horizontal, vertical = target
+    lags = target.shape[1]
     lines = torch.stack([ac[:, :lags, 0, 0], ac[:, 0, :lags, 0], ac[:, 0, 0, :lags]])
     estimate = lines / (ac[:, 0, 0, 0, None] + 1e-8) * (phi - phi.square()) + phi.square()
-    return ((estimate - target) / (target + 1e-3)).square().mean()
+    # The first spatial axis is thickness. Broadcast each curve across the batch.
+    axis_target = torch.stack([vertical, horizontal, horizontal]).unsqueeze(1)
+    return ((estimate - axis_target) / (axis_target + 1e-3)).square().mean()
 

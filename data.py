@@ -119,4 +119,5 @@ def full_field_targets(paths, patch_size):
         frac, corr = descriptors(label, lags)
         fractions += frac
         correlations += corr
-    return fractions / len(paths), correlations.mean(axis=0) / len(paths)
+    # Average over fields, keeping the horizontal and vertical SEM curves separate.
+    return fractions / len(paths), correlations / len(paths)
